@@ -1,0 +1,17 @@
+---
+
+- name: Install nginx 
+  hosts: all
+  become: true
+  tasks:
+    - name: Install Nginx
+      apt: 
+        name: nginx
+        state: latest
+        update_cache: true
+
+    - name: Start service nginx
+      systemd_service:
+        name: nginx
+        state: started
+        enabled: true
