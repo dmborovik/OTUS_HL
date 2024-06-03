@@ -1,0 +1,4 @@
+---
+# handlers file for iscsi
+- name: save targetcli configuration
+  command: targetcli saveconfig
