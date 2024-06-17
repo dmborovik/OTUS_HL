@@ -1,0 +1,44 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+    config.vm.box = "centos/7"
+    #config.vm.box = "generic/centos7" #image with lvm
+ 
+    config.vm.provider "virtualbox" do |v|
+      v.cpus=1
+      v.memory=512
+    end
+  
+    config.vm.define "target" do |chs1|
+      chs1.vm.hostname = "target"      
+      chs1.vm.network "private_network", ip: "192.168.56.10"
+      chs1.vm.network "private_network", ip: "192.168.56.20"
+      
+      chs1.vm.provider :virtualbox do |vb|
+        vb.customize ["storagectl", :id, "--name", "SATA", "--add", "sata" ]
+        unless File.exist?("sata1.vdi")
+            vb.customize ["createhd", "--filename", "sata1.vdi", "--size", 2048, "--format", "VDI"]
+        end
+        vb.customize ["storageattach", :id, "--storagectl", "SATA", "--port", "2", "--device", "0", "--type", "hdd", "--medium", "sata1.vdi"]
+      end
+
+    end
+
+    config.vm.define "node1" do |chs2|
+      chs2.vm.hostname = "node1"      
+      chs2.vm.network "private_network", ip: "192.168.56.11"
+    end
+
+    config.vm.define "node2" do |chs3|
+      chs3.vm.hostname = "node2"      
+      chs3.vm.network "private_network", ip: "192.168.56.12"
+    end
+
+    config.vm.define "node3" do |chs4|
+      chs4.vm.hostname = "node3"      
+      chs4.vm.network "private_network", ip: "192.168.56.13"
+    end
+    
+end

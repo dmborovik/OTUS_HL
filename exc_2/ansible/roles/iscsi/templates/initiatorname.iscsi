@@ -1,1 +1,0 @@
-InitiatorName=iqn.2024-05.otus.hl:{{ ansible_hostname }}

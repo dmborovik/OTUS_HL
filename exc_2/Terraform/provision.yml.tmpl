@@ -1,0 +1,47 @@
+---
+- name: Install SCSI on all hosts
+  remote_user: ${remote_user}
+  hosts: all
+  become: True
+  vars:
+    cluster_name: ${cluster_name}
+    iqn_base: ${iqn_base}
+    iscsi_target_ip1: ${iscsi.network_interface.0.ip_address}
+    iscsi_target_ip2: ${iscsi.network_interface.1.ip_address}
+    iscsi_target_port: '3260'
+    iscsi_targets:
+      - target:
+        name: ${iqn_base}:storage.target00
+        disks:
+          - disk1:
+            path: /dev/vdb
+            name: disk1
+            type: block
+        initiators:
+%{ for node in nodes ~}
+          - ${node.hostname}:
+            name: ${iqn_base}:${node.hostname}
+%{ endfor ~}
+    send_targets_path: '/var/lib/iscsi/send_targets'
+
+  roles:
+    - { role: 'OndrejHome.targetcli-modules' }
+    - iscsi
+
+- name: Install multipath, GFS2 and set pcs on node
+  remote_user: ${remote_user}
+  hosts: cluster
+  become: true
+  vars:
+    cluster_name: ${cluster_name}
+    vg_name: ${vg_name}
+    lv_name: ${lv_name}
+    cluster_size: ${cluster_size}
+    fs_name: ${fs_name}
+  roles:
+    - pacemaker
+    - multipath
+    - gfs2
+
+  
+

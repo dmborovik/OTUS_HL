@@ -1,4 +1,0 @@
----
-iscsi_target_ip1: '192.168.56.10'
-iscsi_target_ip2: '192.168.56.20'
-iscsi_target_port: '3260'

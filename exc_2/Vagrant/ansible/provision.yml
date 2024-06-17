@@ -1,0 +1,24 @@
+---
+- name: Install SCSI on all hosts
+  hosts: all
+  become: True
+  vars:
+    cluster_name: clusterex
+
+  roles:
+    - { role: 'OndrejHome.targetcli-modules' }
+    - iscsi
+
+- name: Install multipath, GFS2 and set pcs on node
+  hosts: clients
+  become: true
+  vars:
+    cluster_name: clusterex
+  
+  roles:
+    - pacemaker
+    - multipath
+    - gfs2
+
+  
+

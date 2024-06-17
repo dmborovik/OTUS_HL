@@ -1,0 +1,42 @@
+---
+
+- name: install pacemaker packages
+  yum: name={{ item }}
+  with_items:
+    - pacemaker
+    - pcs
+    - psmisc
+    - policycoreutils-python
+    - fence-agents-all
+    - resource-agents
+
+- name: enable pcsd service
+  systemd:
+    name: pcsd
+    state: started
+    enabled: yes
+
+- name: config | Setting hacluster password
+  user:
+    name:  hacluster
+    password: "{{ pacemaker_hacluster_sha | mandatory | password_hash('sha512', ansible_hostname|replace('-','x') | truncate(16, True, '', 0)) }}"
+  become: true
+
+- name: config cluster
+  block:
+
+  - name: check if auth was made already
+    stat:
+      path: /var/lib/pcsd/tokens
+    register: tokens_exist
+
+  - name: pcs auth
+    run_once: True
+    shell: |
+      pcs cluster auth {{ groups['clients']|join(' ') }} -u hacluster -p  {{ pacemaker_hacluster_sha  }}
+      pcs cluster setup --name {{ cluster_name }} {{ groups['clients']|join(' ') }}
+      pcs cluster start --all
+      pcs cluster enable --all
+    when: not tokens_exist.stat.exists
+
+  throttle: 1

@@ -1,0 +1,6 @@
+---
+# defaults file for gfs2
+vg_name: vg_test
+lv_name: lv_test
+cluster_size: 3
+fs_name: gfs2

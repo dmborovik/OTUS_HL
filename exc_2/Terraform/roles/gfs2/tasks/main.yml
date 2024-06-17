@@ -1,0 +1,101 @@
+---
+# tasks file for gfs2
+
+- name: Enable locking_type=3
+  lineinfile:
+    dest: '/etc/lvm/lvm.conf'
+    regexp: '^\s*locking_type'
+    line: '        locking_type = 3'
+  notify:
+    - Rebuild initramfs
+
+- name: Enable fencing
+  command: pcs property set stonith-enabled=false
+  run_once: True
+
+- name: Freeze no-quorum policy
+  command: pcs property set no-quorum-policy=freeze
+  run_once: true
+
+- name: Create dlm
+  command: pcs resource create dlm systemd:dlm op monitor interval=120s on-fail=ignore clone interleave=true ordered=true --wait
+  register: result
+  failed_when:
+  - result.rc !=0 and "already exists" not in result.stderr
+  run_once: true
+
+- name: Create clvmd
+  run_once: True
+  command: pcs resource create clvmd ocf:heartbeat:clvm op monitor interval=120s on-fail=ignore clone interleave=true ordered=true --wait
+  register: result
+  failed_when:
+  - result.rc != 0 and "already exist" not in result.stderr
+
+- name: Set order constraint
+  run_once: True
+  command: pcs constraint order start dlm-clone then clvmd-clone
+  register: result
+  failed_when:
+  - result.rc != 0 and "already exists" not in result.stderr
+
+- name: Set colocation constraint
+  run_once: True  
+  command: pcs constraint colocation add clvmd-clone with dlm-clone
+  register: result
+  failed_when: 
+  - result.rc != 0 and "already exists" not in result.stderr
+
+- name: Create a PV and VG
+  run_once: True
+  lvg:
+    pvs: /dev/mapper/mpatha
+    vg: "{{ vg_name }}"
+    vg_options: -cy -Ay
+
+- name: Create LV 
+  run_once: True
+  lvol:
+    vg: "{{ vg_name }}"
+    lv: "{{ lv_name }}"
+    size: 100%FREE
+  register: result
+  failed_when: 
+    - result is not changed
+    - '"Sorry, no shrinking" not in result.msg'
+  
+- name: Create FS
+  run_once: True  
+  command: mkfs.gfs2 -j "{{ cluster_size }}" -p lock_dlm -t "{{ cluster_name }}":"{{ fs_name }}" -O /dev/"{{ vg_name }}"/"{{ lv_name }}"
+  register: result
+  failed_when:
+  - result.rc != 0 
+  - '"Device or resource busy" not in result.stderr'
+
+- name: Create a clusterfs resource
+  run_once: True
+  command: pcs resource create clusterfs ocf:heartbeat:Filesystem device=/dev/"{{ vg_name }}"/"{{ lv_name }}" directory=/mnt/gfs2 fstype=gfs2 options=noatime op monitor interval=10s on-fail=fence clone interleave=true --wait
+  register: result
+  failed_when:
+  - result.rc != 0
+  - '"already exist" not in result.stderr'
+
+- name: Set order constraint
+  run_once: True
+  command: pcs constraint order start clvmd-clone then clusterfs-clone
+  register: result
+  failed_when:
+  - result.rc != 0 
+  - '"already exists" not in result.stderr'
+
+- name: Set colocation constraint 
+  run_once: true
+  command: pcs constraint colocation add clusterfs-clone with clvmd-clone
+  register: result
+  failed_when: 
+  - result.rc != 0
+  - '"already exists" not in result.stderr'
+
+- name: Put a test file
+  shell: 
+    cmd: hostname >> create
+    chdir: /mnt/gfs2

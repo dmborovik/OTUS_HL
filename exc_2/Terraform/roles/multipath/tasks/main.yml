@@ -1,0 +1,40 @@
+---
+# tasks file for multipath
+- name: Install extension 
+  yum:
+    name:
+      - lvm2-cluster
+      - lvm2-lockd
+      - gfs2-utils
+    state: present
+    update_cache: yes
+    
+- name: install multipath extension
+  yum:
+    name: device-mapper-multipath
+    state: present
+    update_cache: yes
+
+- name: set multipath conf
+  template:
+    src: multipath.conf
+    dest: /etc/multipath.conf
+    owner: root 
+    mode: 0600
+
+- name: Add dm_round_robin module
+  modprobe:
+    name: dm_round_robin
+    state: present
+
+- name: start service multipath
+  service:
+    name: multipathd
+    state: started
+    enabled: true
+
+- name: add disks to multipath
+  command: multipath -a {{ item }}
+  with_items:
+  - '/dev/vdb'
+  - '/dev/vdc'

@@ -1,7 +1,0 @@
----
-- name: Install ISCSI, multipath and GFS2
-  hosts: all
-  become: True
-  roles:
-    - { role: 'OndrejHome.targetcli-modules' }
-    - iscsi

@@ -1,0 +1,10 @@
+---
+
+- name: Set target
+  include_tasks: target.yml
+  when: inventory_hostname in groups[ "targets" ] 
+
+- name: Set clients
+  include_tasks: client.yml
+  when: inventory_hostname in groups[ "clients" ]
+

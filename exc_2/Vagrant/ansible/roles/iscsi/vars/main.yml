@@ -1,0 +1,20 @@
+---
+# vars file for iscsi
+iqn_base: iqn.2024-05.ex2.hl
+iscsi_targets:
+  - target:
+    name: "{{ iqn_base }}:{{ ansible_facts['nodename'] }}"
+    disks:
+      - disk1:
+        path: /dev/sdb
+        name: disk1
+        type: block
+    initiators:
+      - node1:
+        name: "{{ iqn_base }}:node1"
+      - node2:
+        name: "{{ iqn_base }}:node2"
+      - node3:
+        name: "{{ iqn_base }}:node3"
+    
+send_targets_path: '/var/lib/iscsi/send_targets/'
