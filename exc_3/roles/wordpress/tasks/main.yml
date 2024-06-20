@@ -1,0 +1,45 @@
+---
+# tasks file for wordpress
+- name: Install prerequisites
+  yum:
+    name: 
+      - wget
+      - policycoreutils-python
+    state: present
+    update_cache: true
+
+- name: Create document root
+  file: 
+    path: /var/www/html/api/
+    state: directory
+    owner: "nginx"
+    mode: 0755
+
+- name: Download and unpack latest Wordpress
+  unarchive:
+    src: https://wordpress.org/latest.tar.gz
+    dest: "/var/www/html/api/"
+    remote_src: yes
+    creates: "/var/www/html/api/wordpress"
+
+- name: set up wp-config
+  template:
+    src: wp-config.php.j2
+    dest: "/var/www/html/api/wordpress/wp-config.php"
+
+- name: set permission for files
+  shell: "chown -R nginx: /var/www/html/api"
+
+- name: set indicator of VM on install.php
+  template:
+    src: install.php
+    dest: "/var/www/html/api/wordpress/wp-admin/install.php"
+    owner: nginx
+    group: nginx
+    mode: 0644
+
+- name: restart NGINX
+  service:
+    name: nginx
+    state: restarted
+    enabled: true

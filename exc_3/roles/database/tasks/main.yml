@@ -1,0 +1,82 @@
+---
+#tasks file for database
+- name: add MariaDB repository
+  yum_repository:
+    name: MariaDB
+    description: MariaDB repository
+    file: MariaDB
+    baseurl: https://rpm.mariadb.org/{{ version_MariaDB }}/rhel/$releasever/$basearch
+    gpgkey: https://rpm.mariadb.org/RPM-GPG-KEY-MariaDB
+    gpgcheck: yes
+    
+- name: Install MariaDB-server and extenstions
+  yum:
+    name:
+      - mariadb-server
+      - MariaDB-client
+      - MySQL-python
+    state: present
+    update_cache: yes
+
+- name: Start and enable MariaDB service
+  systemd_service:
+    name: mariadb
+    state: started
+    enabled: true
+
+- name: Update root password
+  mysql_user:
+    name: root
+    host: "{{ item }}"
+    password: "{{ mysql_root_pass }}"
+  with_items:
+    - 127.0.0.1
+    - ::1
+    - localhost
+
+- name: set .my.cnf file
+  template:
+    src: my.cnf
+    dest: ~/.my.cnf
+    mode: 0600
+
+- name: Delete anonymus MySQL user
+  mysql_user:
+    name: ""
+    host: "{{ item }}"
+    state: absent
+  with_items:
+    - localhost
+    - "{{ ansible_nodename }}"
+
+- name: Delete hostname based MySQL user
+  mysql_user:
+    name: root
+    host: "{{ ansible_nodename }}"
+    state: absent
+
+- name: Remove MySQL test database
+  mysql_db:
+    name: test
+    state: absent
+
+- name: Create database
+  mysql_db:
+    name: "{{ mysql_db }}"
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_pass }}"
+    
+- name: Create user for wordpress
+  mysql_user:
+    name: "{{ mysql_wp_user }}"
+    password: "{{ mysql_wp_pass }}"
+    priv: "{{ mysql_db }}.*:ALL,GRANT"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_pass }}"
+  with_items:
+    - localhost
+    - backend1
+    - backend2

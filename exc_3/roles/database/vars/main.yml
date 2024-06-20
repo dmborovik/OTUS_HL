@@ -1,0 +1,3 @@
+---
+# vars file for database
+version_MariaDB : 11.5.1
