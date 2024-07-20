@@ -1,0 +1,13 @@
+[balancers]
+nginx1 ansible_host=192.168.56.10 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/nginx1/virtualbox/private_key
+nginx2 ansible_host=192.168.56.11 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/nginx2/virtualbox/private_key
+
+[backend]
+backend1 ansible_host=192.168.56.20 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/backend1/virtualbox/private_key
+backend2 ansible_host=192.168.56.21 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/backend2/virtualbox/private_key
+
+[databases]
+database ansible_host=192.168.56.30 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/database/virtualbox/private_key
+
+[targets]
+iscsi ansible_host=192.168.56.40 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/iscsi/virtualbox/private_key

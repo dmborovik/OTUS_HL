@@ -1,0 +1,18 @@
+---
+# handlers file for pacemaker
+- name: Reboot Host
+  reboot:
+    reboot_timeout: 3600
+    
+- name: restart corosync
+  service:
+    name: "corosync"
+    state: "restarted"
+  become: true
+
+- name: restart pacemaker
+  service:
+    name: "pacemaker"
+    sleep: 10
+    state: "restarted"
+  become: true

@@ -1,0 +1,33 @@
+---
+# tasks file for php
+- name: installing remi repository
+  yum:
+    name: http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+    state: present
+
+- name: installing php
+  yum:
+    enablerepo: "remi-php80"
+    name: 
+      - php
+      - php-sockets
+      - php-fpm
+      - php-mysqlnd
+      - php-mysqli
+    state: latest
+
+- name: stopped php-fpm for config
+  systemd:
+    name: php-fpm
+    state: stopped
+
+- name: set config fot php-fpm
+  template:
+    src: www.conf
+    dest: '/etc/php-fpm.d/www.conf'
+
+- name: start php-fpm
+  systemd:
+    name: php-fpm
+    state: started
+    enabled: true

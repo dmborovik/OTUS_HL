@@ -1,0 +1,19 @@
+---
+# tasks file for nginx
+- name: install Nginx
+  yum:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: set nginx config
+  template:
+    src: "api.conf.j2"
+    dest: /etc/nginx/conf.d/api.conf
+
+- name: restart NGINX
+  service:
+    name: nginx
+    state: restarted
+    enabled: true
+

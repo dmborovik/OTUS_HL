@@ -1,0 +1,50 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+    config.vm.box = "centos/7"
+    #config.vm.box = "generic/centos7" #image with lvm
+ 
+    config.vm.provider "virtualbox" do |v|
+      v.cpus=1
+      v.memory=256    end
+  
+    config.vm.define "nginx1" do |chs1|
+      chs1.vm.hostname = "nginx1"      
+      chs1.vm.network "private_network", ip: "192.168.56.10"
+    end
+
+    config.vm.define "nginx2" do |ngx2|
+      ngx2.vm.hostname = "nginx2"      
+      ngx2.vm.network "private_network", ip: "192.168.56.11"
+    end
+
+    config.vm.define "backend1" do |bck1|
+      bck1.vm.hostname = "backend1"      
+      bck1.vm.network "private_network", ip: "192.168.56.20"
+    end
+
+    config.vm.define "backend2" do |bck2|
+      bck2.vm.hostname = "backend2"      
+      bck2.vm.network "private_network", ip: "192.168.56.21"
+    end
+
+    config.vm.define "database" do |dba|
+      dba.vm.hostname = "database"      
+      dba.vm.network "private_network", ip: "192.168.56.30"
+    end
+
+    config.vm.define "iscsi" do |iscsi|
+      iscsi.vm.hostname = "iscsi"
+      iscsi.vm.network "private_network", ip: "192.168.56.40"
+
+      iscsi.vm.provider :virtualbox do |vb|
+        vb.customize ["storagectl", :id, "--name", "SATA", "--add", "sata" ]
+        unless File.exist?("sata1.vdi")
+            vb.customize ["createhd", "--filename", "sata1.vdi", "--size", 2048, "--format", "VDI"]
+        end
+        vb.customize ["storageattach", :id, "--storagectl", "SATA", "--port", "2", "--device", "0", "--type", "hdd", "--medium", "sata1.vdi"]
+      end
+    end
+end

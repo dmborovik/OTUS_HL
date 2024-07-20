@@ -1,0 +1,29 @@
+---
+- name: Install extension
+  dnf:
+    name:    
+      - python3-firewall
+    state: present
+
+# - name: Add iscsi-target service to firewalld
+#   firewalld:
+#     service: iscsi-target 
+#     permanent: True
+#     state: enabled  
+#   register: firewalld_state
+
+# - name: reload firewalld
+#   service:
+#     name: firewalld
+#     state: reloaded
+#   when: firewalld_state is changed
+
+
+- name: Set target
+  include_tasks: target.yml
+  when: inventory_hostname in groups[ "targets" ] 
+
+- name: Set clients
+  include_tasks: client.yml
+  when: inventory_hostname in groups[ "backend" ]
+

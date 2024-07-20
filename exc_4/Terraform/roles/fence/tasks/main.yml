@@ -1,0 +1,38 @@
+---
+#tasks file for fence
+- name: Install SCSI Fence Agent
+  dnf:
+    name: 
+      - fence-agents-all
+      - watchdog
+      - pcp-zeroconf
+    enablerepo: highavailability
+    state: present
+    update_cache: yes
+
+- name: check if fence_check was made already
+  stat:
+    path: /etc/watchdog.d/fence_scsi_check
+  register: conf_exist
+
+- name: Copy fence_scsi_check to watchdog config
+  command: cp /usr/share/cluster/fence_scsi_check /etc/watchdog.d
+  when: not conf_exist.stat.exists
+
+- name: Enabled watchdog
+  systemd:
+    name: watchdog
+    enabled: yes
+
+- name: get disk ID
+  run_once: true
+  shell: ls -l /dev/disk/by-id | grep sda | grep wwn | cut -d ' ' -f 10
+  register: disk_id
+
+- name: set fencing
+  run_once: True
+  command: pcs stonith create scsi-shooter fence_scsi pcmk_host_list="{{ groups['backend']|join(' ') }}" devices=/dev/disk/by-id/"{{disk_id.stdout}}" meta provides=unfencing
+  register: result
+  failed_when:
+  - result.rc !=0 and "already exists" not in result.stderr
+  

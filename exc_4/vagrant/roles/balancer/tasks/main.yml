@@ -1,0 +1,46 @@
+---
+# tasks file for balancer
+- name: Install NGINX and keepalived
+  yum: 
+    name: 
+      - nginx
+      - keepalived
+    state: present
+    update_cache: true
+
+- name: set nginx config
+  template:
+    src: balancer.conf.j2
+    dest: /etc/nginx/conf.d/api.conf
+
+- name: set parametr net.ipv4.ip_nonlocal_bind
+  sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: 1
+
+- name: set config keepalived
+  template:
+    src: keepalived.{{ inventory_hostname }}.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: 0644
+
+- name: set keepalive check script
+  copy: 
+    src: check_nginx.sh
+    dest: /usr/bin/check_nginx.sh
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Restart Services
+  service:
+    name: "{{ item }}"
+    state: restarted
+    enabled: true
+  with_items:
+    - nginx
+    - keepalived
+
+

@@ -1,0 +1,3 @@
+---
+pacemaker_hacluster_sha : 'SuperPass'
+pacemaker_hacluster_name: test_cluster
