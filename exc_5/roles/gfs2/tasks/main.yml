@@ -1,0 +1,122 @@
+---
+# tasks file for gfs2
+- name: Install extension 
+  yum:
+    name:
+      - dlm
+      - lvm2-lockd
+      - gfs2-utils
+    enablerepo: highavailability,resilientstorage
+    state: present
+    update_cache: yes
+
+- name: set use lvmlockd 
+  replace:
+    path: '/etc/lvm/lvm.conf'
+    regexp: "	# use_lvmlockd = 0"
+    replace: 'use_lvmlockd = 1'
+  notify: 
+    - Rebuild initramfs
+
+- name: Freeze a no-quorum policy
+  command: pcs property set no-quorum-policy=freeze
+  run_once: true
+
+- name: Create dlm
+  command: pcs resource create dlm ocf:pacemaker:controld op monitor interval=30s on-fail=fence group locking --future
+  register: result
+  failed_when:
+  - result.rc !=0 and "already exists" not in result.stderr
+  run_once: true
+
+- name: clone dlm
+  command: pcs resource clone locking interleave=true --wait
+  register: result
+  failed_when: 
+  - result.rc !=0 and "already been cloned" not in result.stderr
+  run_once: True
+
+- name: Create lvmlockdd
+  command: pcs resource create lvmlockd ocf:heartbeat:lvmlockd op monitor interval=30s on-fail=fence group locking --future
+  register: result
+  failed_when:
+  - result.rc != 0 and "already exists" not in result.stderr
+  run_once: true
+
+- name: Create a PV and VG
+  run_once: True
+  lvg:
+    pvs: /dev/sda
+    vg: "{{ vg_name }}"
+    vg_options: --shared
+  when: inventory_hostname == "backend1"
+
+- name: Start lock manager for shared volume on backend2
+  shell: lvmdevices --adddev /dev/sda
+  when: inventory_hostname == "backend2"
+
+- name: Start lock manager for shared volume on backend2
+  shell: vgchange --lockstart {{ vg_name }}
+  when: inventory_hostname == "backend2"
+
+- name: Create LV 
+  run_once: True
+  lvol:
+    vg: "{{ vg_name }}"
+    lv: "{{ lv_name }}"
+    size: 100%FREE
+    opts: --activate sy
+  register: result
+  failed_when: 
+    - result is not changed
+    - '"Sorry, no shrinking" not in result.msg'
+  when: inventory_hostname == "backend1"
+  
+- name: Create FS
+  run_once: True  
+  command: mkfs.gfs2 -j "{{ cluster_size }}" -p lock_dlm -t "{{ cluster_name }}":"{{ fs_name }}" -O /dev/"{{ vg_name }}"/"{{ lv_name }}"
+  register: result
+  failed_when:
+  - result.rc != 0 
+  - '"Device or resource busy" not in result.stderr'
+
+- name: Create LVM-activate resource
+  run_once: True
+  command: pcs resource create shared_lv ocf:heartbeat:LVM-activate lvname="{{ lv_name }}" vgname="{{ vg_name }}" activation_mode=shared vg_access_mode=lvmlockd group shared_vg --future
+  register: result
+  failed_when:
+  - result.rc != 0
+  - '"already exist" not in result.stderr'
+
+- name: clone LVM-activate resource
+  run_once: True
+  command: pcs resource clone shared_vg interleave=true
+  register: result
+  failed_when:
+  - result.rc != 0
+  - '"already been cloned" not in result.stderr'
+
+- name: Set order constraint
+  run_once: True
+  command: pcs constraint order start locking-clone then shared_vg-clone
+  register: result
+  failed_when:
+  - result.rc != 0 
+  - '"already exists" not in result.stderr'
+
+- name: Set colocation constraint 
+  run_once: true
+  command: pcs constraint colocation add shared_vg-clone with locking-clone
+  register: result
+  failed_when: 
+  - result.rc != 0
+  - '"already exists" not in result.stderr'
+
+- name: Create filesystem resource 
+  run_once: True
+  command: pcs resource create sharedfs ocf:heartbeat:Filesystem device="/dev/{{ vg_name }}/{{ lv_name }}" directory="{{ api_directory }}" fstype="gfs2" options=noatime op monitor interval=10s on-fail=fence group shared_vg --future
+  register: result
+  failed_when:
+  - result.rc != 0
+  - '"already exists" not in result.stderr'
+

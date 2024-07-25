@@ -1,0 +1,168 @@
+---
+# tasks file for pxc
+# - name: Add port to firewall
+#   firewalld:
+#     port: "{{ item }}/tcp" 
+#     permanent: True
+#     state: enabled
+#   with_items:
+#     - 3306
+#     - 4444
+#     - 4567
+#     - 4568
+#     - 33060
+#   register: add_port
+
+# - name: reload firewalld
+#   service:
+#     name: firewalld
+#     state: reloaded
+#   when: add_port is changed  
+
+- name: install Extenssions
+  yum:
+    name: python3-PyMySQL
+    state: present
+    update_cache: yes
+
+- name: import RPM GPG key
+  rpm_key:
+    key: https://repo.percona.com/yum/PERCONA-PACKAGING-KEY
+
+- name: Install percona repo
+  yum:
+    name: https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+    state: present
+    update_cache: yes
+
+- name: Enable pxc 80 repo
+  shell: percona-release setup pxc-80 -y
+
+- name: Install percona-xtradb-cluster
+  yum:
+    name: percona-xtradb-cluster
+    state: present
+    update_cache: True
+
+- name: "Update the my.cnf"
+  template:
+    src: "etc_my_cnf.j2"
+    dest: "/etc/my.cnf"
+    owner: "root"
+    mode: 0644
+  register: "config_file"
+
+- name: deploy certs
+  copy:
+    src: "{{ item }}"
+    dest: /etc/mysql/certs/{{ item }}
+    owner: mysql
+    group: mysql
+    mode: 0644
+  with_items:
+    - ca.pem
+    - client-cert.pem
+    - client-key.pem
+    - server-cert.pem
+    - server-key.pem
+
+- name: check stat of .my.cnf
+  stat:
+    path: /root/.my.cnf
+  register: my_cnf_exist
+
+- block:
+  - name: start mysql service
+    service:
+      name: mysql
+      state: started
+      enabled: true
+
+  - name: get temp pass 
+    shell: grep 'temporary password' /var/log/mysqld.log | awk '{print $NF}' | tail -n 1
+    register: temp_root_pass
+
+  - name: set root pass 
+    shell: >-
+      mysqladmin -u root
+      --password="{{ temp_root_pass.stdout }}"
+      password "{{ mysql_root_pass }}"
+
+  - name: set /root/.my.cnf
+    template:
+      src: root_my_cnf.j2
+      dest: /root/.my.cnf
+      owner: root
+      group: root
+      mode: 0600
+
+  - name: Delete anonymus MySQL user
+    mysql_user:
+      name: ""
+      host: "{{ item }}"
+      state: absent
+    with_items:
+      - localhost
+      - "{{ ansible_nodename }}"
+
+  - name: Delete hostname based MySQL user
+    mysql_user:
+      name: root
+      host: "{{ ansible_nodename }}"
+      state: absent
+
+  - name: Remove MySQL test database
+    mysql_db:
+      name: test
+      state: absent
+  
+  when: not my_cnf_exist.stat.exists
+
+- name: stop mysql service
+  service:
+    name: mysql
+    state: stopped
+
+- name: set cluster cnf
+  template:
+    src: wsrep.cnf
+    dest: /etc/my.cnf.d/wsrep.cnf
+    mode: 0644
+
+- name: start Bootstrap
+  systemd:
+    name: mysql@bootstrap
+    state: restarted
+  when: inventory_hostname == 'percona1'
+
+- name: start mysql on node, except primary
+  systemd:
+    name: mysql
+    state: restarted
+  when: inventory_hostname != 'percona1'
+
+- name: Create database
+  run_once: True
+  mysql_db:
+    name: "{{ mysql_db }}"
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_pass }}"
+    
+- name: Create user for wordpress
+  run_once: true
+  mysql_user:
+    name: "{{ mysql_wp_user }}"
+    password: "{{ mysql_wp_pass }}"
+    priv: "{{ mysql_db }}.*:ALL,GRANT"
+    host: "{{ item }}"
+    state: present
+    login_user: root
+    login_password: "{{ mysql_root_pass }}"
+  with_items:
+    - localhost
+    - backend1
+    - backend2
+  
+      
+

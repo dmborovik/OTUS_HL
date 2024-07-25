@@ -1,0 +1,35 @@
+---
+remote_user: ${remote_user}
+mysql_root_pass: "Dd488168575!"
+mysql_db: "wordpress"
+mysql_wp_user: "wp_user"
+mysql_wp_pass: "Dd884168884"
+
+cluster_name: "wp_cluster"
+vg_name: "WebApp"
+lv_name: "wordpress"
+cluster_size: 2
+fs_name: gfs2
+api_directory: /var/www/html/api/
+
+iscsi_target_ip: ${iscsi.network_interface.0.ip_address}
+iscsi_target_port: '3260'
+
+iqn_base: iqn.2024-05.ex4.hl
+iscsi_targets:
+  - target:
+    name: "{{ iqn_base }}:{{ ansible_facts['nodename'] }}"
+    disks:
+      - disk1:
+        path: /dev/vdb
+        name: disk1
+        type: block
+    initiators:
+      - backend1:
+        name: "{{ iqn_base }}:backend1"
+      - backend2:
+        name: "{{ iqn_base }}:backend2"
+    
+send_targets_path: '/var/lib/iscsi/send_targets/'
+
+virtual_ip : 192.168.56.200
