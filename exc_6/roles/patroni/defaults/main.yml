@@ -1,0 +1,3 @@
+---
+# defaults file for patroni
+pgsql_version: 15

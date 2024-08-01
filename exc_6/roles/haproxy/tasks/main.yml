@@ -1,0 +1,36 @@
+---
+# tasks file for haproxy
+- name: Add firewalld rules
+  firewalld:
+    port: "{{item}}/tcp"
+    state: enabled
+    permanent: true
+  with_items:
+    - 5001
+    - 5000
+    - 7000
+  register: firewalld_state
+
+- name: reload firewalld
+  service:
+    name: firewalld
+    state: reloaded
+  when: firewalld_state is changed
+
+- name: install Haproxy 
+  dnf:
+    name: haproxy
+    state: present
+    update_cache: true
+
+- name: set haproxy.cfg
+  template:
+    src: haproxy_cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: 0644
+
+- name: start Haproxy service
+  systemd:
+    name: haproxy
+    state: started
+    enabled: true

@@ -1,0 +1,48 @@
+---
+# tasks file for etcd
+- name: Add firewalld rules
+  firewalld:
+    port: "{{item}}/tcp"
+    state: enabled
+    permanent: true
+  with_items:
+    - 2379
+    - 2380
+  register: firewalld_state
+
+- name: reload firewalld
+  service:
+    name: firewalld
+    state: reloaded
+  when: firewalld_state is changed
+ 
+- name: import GPG key for PGDG repository
+  rpm_key:
+    key: https://download.postgresql.org/pub/repos/yum/keys/PGDG-RPM-GPG-KEY-RHEL
+
+- name: install PGDG repository
+  dnf:
+    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    state: present
+
+- name: Install packages and extension
+  dnf:
+    name:
+      - etcd
+    state: present
+    enablerepo: pgdg-rhel9-extras
+    update_cache: True
+
+- name: set etcd.conf
+  template:
+    src: etcd_conf.j2
+    dest: /etc/etcd/etcd.conf
+    mode: 0644
+  register: etcd_conf
+
+- name: Start etcd service
+  systemd:
+    name: etcd
+    state: restarted
+    enabled: true
+  when: etcd_conf is changed

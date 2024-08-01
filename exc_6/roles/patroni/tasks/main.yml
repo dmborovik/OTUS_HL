@@ -1,0 +1,74 @@
+---
+# tasks file for patroni
+- name: Add firewalld rules
+  firewalld:
+    port: "{{item}}/tcp"
+    state: enabled
+    permanent: true
+  with_items:
+    - 5432
+    - 8008
+  register: firewalld_state
+
+- name: reload firewalld
+  service:
+    name: firewalld
+    state: reloaded
+  when: firewalld_state is changed
+    
+- name: import GPG key for PGDG repository
+  rpm_key:
+    key: https://download.postgresql.org/pub/repos/yum/keys/PGDG-RPM-GPG-KEY-RHEL
+
+- name: install PGDG repository
+  dnf:
+    name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    state: present
+
+- name: Install packages and extension
+  dnf:
+    name:
+      - patroni
+      - patroni-etcd
+      - postgresql{{ pgsql_version }}
+      - postgresql{{ pgsql_version }}-server
+    state: present
+    enablerepo: pgdg-rhel9-extras
+    update_cache: True
+
+- name: check init
+  stat:
+    path: /var/lib/pgsql/{{ pgsql_version }}/data/pg_stat
+  register: stat_result
+
+- name: initialization setup
+  shell: sudo /usr/pgsql-{{ pgsql_version }}/bin/postgresql-{{ pgsql_version }}-setup initdb
+  when: not stat_result.stat.exists
+
+- name: make dir for patroni
+  file:
+    name: /data/patroni
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: 0700
+
+- name: set patroni.yml config file
+  template:
+    src: patroni_yml.j2
+    dest: /etc/patroni/patroni.yml
+  register: patroni_yml
+  
+- name: restart patroni
+  systemd:
+    name: patroni
+    state: restarted
+    enabled: True
+  when: patroni_yml is changed
+
+- name: start Pogstgres
+  systemd:
+    name: postgresql-{{pgsql_version}}
+    state: started
+    enabled: true
+

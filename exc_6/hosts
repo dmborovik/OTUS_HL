@@ -1,0 +1,8 @@
+
+[databases]
+pcn1 ansible_host=192.168.56.30 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/pcn1/virtualbox/private_key
+pcn2 ansible_host=192.168.56.31 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/pcn2/virtualbox/private_key
+pcn3 ansible_host=192.168.56.32 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/pcn3/virtualbox/private_key
+
+[hpx]
+haproxy ansible_host=192.168.56.50 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/haproxy/virtualbox/private_key
