@@ -1,4 +1,4 @@
-# NGINX - балансировка и отказоусточивость
+# Elasticsearch (Opensearch)
 
 ## Цель
 
