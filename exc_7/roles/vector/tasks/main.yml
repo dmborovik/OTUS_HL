@@ -1,0 +1,19 @@
+---
+# tasks file for vector
+- name: Install Vector
+  dnf:
+    name: "{{ rpm_url }}"
+    state: present
+    disable_gpg_check: true
+
+- name: set config vector
+  template:
+    src: vector.yaml
+    dest: /etc/vector/vector.yaml
+
+- name: Start and enable vector
+  service:
+    name: vector
+    state: started
+    enabled: true
+
