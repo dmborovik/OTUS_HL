@@ -1,0 +1,110 @@
+---
+# tasks file for kafka
+- name: Install prerequestion
+  dnf:
+    name: java
+    state: present
+
+- name: Create kafka user
+  user:
+    name: "{{ kfk_user }}"
+    state: present
+    shell: /bin/bash
+    password: "{{ kfk_pass }}"
+    create_home: True
+
+- name: Download kafka 
+  get_url:
+    url: "{{ kfk_url }}"
+    dest: "/tmp/kafka.tar.gz"
+  register: download
+
+- name: make dir for kafka
+  file:
+    name: "{{ kfk_home }}/kafka"
+    owner: "{{ kfk_user }}"
+    group: "{{ kfk_user }}"
+    state: directory
+
+- name: Extract the tar file
+  unarchive:
+    src: /tmp/kafka.tar.gz
+    dest: "{{ kfk_home }}/kafka"
+    remote_src: yes
+    extra_opts: --strip-components=1
+  when: download.changed
+
+- name: Create data directory for zookeeper
+  file:
+    name: "{{ kfk_home }}/kafka/data/zookepeer"
+    owner: "{{ kfk_user }}"
+    group: "{{ kfk_user }}"
+    state: directory
+
+- name: Set zookepeer properties
+  template:
+    src: zookeeper.properties
+    dest: "{{ kfk_home }}/kafka/config/zookeeper.properties"
+
+- name: Create data directory for kafka
+  file:
+    name: "{{ kfk_home }}/kafka/data/kafka"
+    owner: "{{ kfk_user }}"
+    group: "{{ kfk_user }}"
+    state: directory
+
+- name: Set kafka properties
+  template:
+    src: server.properties
+    dest: "{{ kfk_home }}/kafka/config/server.properties"
+
+- name: set permission for kafka directory
+  file:
+    dest: "{{ kfk_home }}"
+    owner: "{{ kfk_user }}"
+    group: "{{ kfk_user }}"
+    recurse: yes
+
+- name: Create zookeeper service
+  template:
+    src: zookeeper.service
+    dest: /etc/systemd/system/zookeeper.service
+
+- name: Create kafka service
+  template: 
+    src: kafka.service
+    dest: /etc/systemd/system/kafka.service
+
+- name: Start kafka
+  service:
+    name: kafka
+    state: started
+    enabled: true
+
+- name: Check topics
+  become_user: kafka
+  shell: "{{ kfk_home }}/kafka/bin/kafka-topics.sh --list --bootstrap-server kfk:9092"
+  register: topic
+
+- name: Create topic 
+  become_user: kafka
+  shell: "{{ kfk_home }}/kafka/bin/kafka-topics.sh --create --topic nginx --partitions 2 --bootstrap-server kfk:9092"
+  when: "'nginx' not in topic.stdout"
+
+- name: Create topic 
+  become_user: kafka
+  shell: "{{ kfk_home }}/kafka/bin/kafka-topics.sh --create --topic wordpress --partitions 2 --bootstrap-server kfk:9092"
+  when: "'wordpress' not in topic.stdout"
+
+
+
+
+    
+
+
+
+
+
+
+    
+

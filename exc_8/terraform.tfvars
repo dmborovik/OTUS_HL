@@ -1,0 +1,1 @@
+cloud_user = "almalinux"

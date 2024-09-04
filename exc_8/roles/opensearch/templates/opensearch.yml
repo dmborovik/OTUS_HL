@@ -1,0 +1,18 @@
+
+cluster.name: "{{ cluster_name }}"
+
+node.name: "{{ inventory_hostname }}"
+
+network.host: "{{ hostvars[inventory_hostname]['ansible_eth0'].ipv4.address }}"
+
+http.port: 9200
+
+bootstrap.memory_lock: true
+
+discovery.type: single-node
+
+## END opensearch main configuration ##
+## BEGIN OpenSearch Security common configuration ##
+plugins.security.disabled: false
+plugins.security.allow_unsafe_democertificates: false #
+

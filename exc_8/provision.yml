@@ -1,0 +1,67 @@
+---
+- name: Prerequestion
+  hosts: all
+  remote_user: "{{ remote_user }}"
+  become: yes 
+
+  tasks:
+    
+  - name: set timezone
+    timezone:
+      name: Europe/Moscow
+  
+  - name: set hosts file
+    template:
+      src: templates/hosts
+      dest: /etc/hosts
+
+  - name: Disable SELinux
+    selinux:
+      state: disabled
+    register: selinux_status
+
+  - name: Reboot host
+    reboot:
+      reboot_timeout: 3600
+    when: selinux_status is changed
+  
+- name: Set opensearch app
+  hosts:
+    - ops
+  become: True
+  remote_user: "{{ remote_user }}"
+  roles:
+    - opensearch
+    - dashboard
+
+- name: Set kafka
+  hosts:
+    - kafka
+  become: True
+  remote_user: "{{ remote_user }}"
+  roles:
+    - kafka
+  
+- name: Set backend
+  hosts:
+    - backends
+  become: True
+  remote_user: "{{ remote_user }}"
+  roles:
+    - nginx
+    - php
+    - wordpress
+    - database
+
+- name: Deploy vector
+  hosts: vector
+  become: True
+  remote_user: "{{ remote_user }}"
+  roles:
+    - vector
+
+
+
+
+  
+

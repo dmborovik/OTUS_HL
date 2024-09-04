@@ -1,0 +1,8 @@
+---
+# defaults file for kafka
+
+kfk_user: kafka
+kfk_pass: kafka
+kfk_home: /home/kafka
+
+kfk_url: https://downloads.apache.org/kafka/3.8.0/kafka_2.13-3.8.0.tgz

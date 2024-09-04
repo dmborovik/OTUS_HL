@@ -1,0 +1,29 @@
+---
+# tasks file for php
+
+- name: installing php
+  dnf:
+    name: 
+      - php
+      - php-sockets
+      - php-fpm
+      - php-mysqlnd
+      - php-mysqli
+      - php-pgsql # for PostgreSQL used
+    state: latest
+
+- name: stopped php-fpm for config
+  systemd:
+    name: php-fpm
+    state: stopped
+
+- name: set config fot php-fpm
+  template:
+    src: www.conf
+    dest: '/etc/php-fpm.d/www.conf'
+
+- name: start php-fpm
+  systemd:
+    name: php-fpm
+    state: started
+    enabled: true

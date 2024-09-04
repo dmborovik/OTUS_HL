@@ -1,0 +1,13 @@
+[ops]
+ops ansible_host=89.169.162.76 ansible_ssh_common_args='-o StrictHostKeyChecking=no' 
+
+[backends]
+backend ansible_host=130.193.55.87 ansible_ssh_common_args='-o StrictHostKeyChecking=no' 
+
+[kafka]
+kfk ansible_host=130.193.54.164 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+
+
+[vector]
+backend
+kfk

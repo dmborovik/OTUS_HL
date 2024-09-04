@@ -1,0 +1,190 @@
+---
+## Here we are going to use self-signed certificates for Transport (Node-Node communication) & REST API layer
+## Using searchguard offline TLS tool to create node & root certificates
+- name: Force remove local temporary directory for certificates generation
+  local_action:
+    module: file
+    path: /tmp/opensearch-nodecerts
+    state: absent
+  run_once: true
+  become: false
+
+- name: Create local temporary directory for certificates generation
+  local_action:
+    module: file
+    path: /tmp/opensearch-nodecerts
+    state: directory
+  run_once: true
+  register: configuration
+  become: false
+
+- name: Download certificates generation tool
+  local_action:
+    module: get_url
+    url: https://search.maven.org/remotecontent?filepath=com/floragunn/search-guard-tlstool/1.8/search-guard-tlstool-1.8.tar.gz
+    dest: /tmp/opensearch-nodecerts/search-guard-tlstool.tar.gz
+  run_once: true
+  when: configuration.changed
+  become: false
+
+- name: Extract the certificates generation tool
+  local_action: command chdir=/tmp/opensearch-nodecerts tar -xvf search-guard-tlstool.tar.gz
+  run_once: true
+  when: configuration.changed
+  become: false
+
+- name: Make the executable file
+  local_action:
+    module: file
+    dest: /tmp/opensearch-nodecerts/tools/sgtlstool.sh
+    mode: a+x
+  run_once: true
+  when: configuration.changed
+  become: false
+
+- name: Prepare the certificates generation template file
+  local_action:
+    module: template
+    src: tlsconfig.yml
+    dest: /tmp/opensearch-nodecerts/config/tlsconfig.yml
+  run_once: true
+  when: configuration.changed
+  become: false
+
+- name: Generate the node & admin certificates in local
+  local_action:
+    module: command /tmp/opensearch-nodecerts/tools/sgtlstool.sh -c /tmp/opensearch-nodecerts/config/tlsconfig.yml -ca -crt -t /tmp/opensearch-nodecerts/config/
+  run_once: true
+  when: configuration.changed
+  become: false
+
+- name: Copy the node & admin certificates to opensearch nodes if at least one certificate is not found on at least one server
+  ansible.builtin.copy:
+    src: "/tmp/opensearch-nodecerts/config/{{ item }}"
+    dest: "{{ os_conf_dir }}"
+    mode: 0600
+  with_items:
+    - root-ca.pem
+    - root-ca.key
+    - "{{ inventory_hostname }}.key"
+    - "{{ inventory_hostname }}.pem"
+    - "{{ inventory_hostname }}_http.key"
+    - "{{ inventory_hostname }}_http.pem"
+    - admin.key
+    - admin.pem
+  when: configuration.changed
+
+- name: Copy the security configuration file 1 to cluster
+  ansible.builtin.blockinfile:
+    block: "{{ lookup('template', 'templates/security_conf.yml') }}"
+    dest: "{{ os_conf_dir }}/opensearch.yml"
+    backup: true
+    insertafter: EOF
+    marker: "## {mark} OpenSearch Security common configuration ##"
+  when: configuration.changed
+
+- name: Copy the security configuration file 2 to cluster
+  ansible.builtin.blockinfile:
+    block: "{{ lookup('file', '/tmp/opensearch-nodecerts/config/{{ inventory_hostname }}_elasticsearch_config_snippet.yml') }}"
+    dest: "{{ os_conf_dir }}/opensearch.yml"
+    backup: true
+    insertafter: EOF
+    marker: "## {mark} opensearch Security Node & Admin certificates configuration ##"
+  when: configuration.changed
+
+- name: Create security plugin configuration folder
+  ansible.builtin.file:
+    dest: "{{ os_sec_plugin_conf_path }}"
+    owner: "{{ os_user }}"
+    group: "{{ os_user }}"
+    mode: 0700
+    state: directory
+  when: configuration.changed 
+
+- name: Prepare the opensearch security configuration file
+  ansible.builtin.command: sed -i 's/searchguard/plugins.security/g' {{ os_conf_dir }}/opensearch.yml
+  when: configuration.changed
+
+- name: Set the file ownerships
+  ansible.builtin.file:
+    dest: "{{ os_home }}"
+    owner: "{{ os_user }}"
+    group: "{{ os_user }}"
+    recurse: true
+
+- name: Set the folder permission
+  ansible.builtin.file:
+    dest: "{{ os_conf_dir }}"
+    owner: "{{ os_user }}"
+    group: "{{ os_user }}"
+    mode: 0700
+
+- name: Restart opensearch with security configuration
+  ansible.builtin.systemd:
+    name: opensearch
+    state: restarted
+    enabled: true
+
+- name: Wait for opensearch to startup
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[inventory_hostname]['ansible_eth0'].ipv4.address }}"
+    port: "{{ os_api_port }}"
+    delay: 5
+    connect_timeout: 1
+    timeout: 120
+
+- name: Copy the opensearch security internal users template
+  ansible.builtin.template:
+    src: internal_users.yml
+    dest: "{{ os_sec_plugin_conf_path }}/internal_users.yml"
+    mode: 0644
+  run_once: true
+  # when: configuration.changed
+
+
+- name: Set the Admin user password
+  ansible.builtin.shell: >
+    sed -i '/hash: / s,{{ admin_password }},'$(bash {{ os_sec_plugin_tools_path }}/hash.sh -p {{ admin_password }} | tail -1)','
+    {{ os_sec_plugin_conf_path }}/internal_users.yml
+  environment:
+    JAVA_HOME: "{{ os_home }}/jdk"
+  run_once: true
+  # when: configuration.changed
+
+- name: Set the kibanaserver user pasword
+  ansible.builtin.shell: >
+    sed -i '/hash: / s,{{ kibanaserver_password }},'$(bash {{ os_sec_plugin_tools_path }}/hash.sh -p {{ kibanaserver_password }} | tail -1)','
+    {{ os_sec_plugin_conf_path }}/internal_users.yml
+  environment:
+    JAVA_HOME: "{{ os_home }}/jdk"
+  run_once: true
+  # when: configuration.changed
+
+- name: run permission for security 
+  shell: chmod +x {{ os_sec_plugin_tools_path }}/securityadmin.sh
+  # when: configuration.changed 
+
+
+- name: Initialize the opensearch security index in opensearch with default configs
+  ansible.builtin.shell: >
+    bash {{ os_sec_plugin_tools_path }}/securityadmin.sh
+    -cacert {{ os_conf_dir }}/root-ca.pem
+    -cert {{ os_conf_dir }}/admin.pem
+    -key {{ os_conf_dir }}/admin.key
+    -f {{ os_sec_plugin_conf_path }}/internal_users.yml
+    -nhnv -icl
+    -h {{ hostvars[inventory_hostname]['ansible_eth0'].ipv4.address }}
+  environment:
+    JAVA_HOME: "{{ os_home }}/jdk"
+  run_once: true
+  # when: configuration.changed 
+
+- name: Cleanup local temporary directory
+  local_action:
+    module: file
+    path: /tmp/opensearch-nodecerts
+    state: absent
+  run_once: true
+  # when: configuration.changed
+  become: false
+
