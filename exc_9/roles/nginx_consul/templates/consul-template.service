@@ -1,0 +1,16 @@
+[Unit]
+Description="HashiCorp Consul-Template"
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/consul-template -config=/usr/local/consul/templates/consul.hcl
+KillSignal=SIGINT
+SuccessExitStatus=12
+
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

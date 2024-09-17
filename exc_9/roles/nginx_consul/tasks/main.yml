@@ -1,0 +1,60 @@
+---
+# tasks file for nginx_consul
+- name: install Nginx
+  yum:
+    name: 
+      - nginx
+    state: present
+    update_cache: yes
+
+- name: Download consul-template
+  get_url:
+    url: "https://hashicorp-releases.yandexcloud.net/consul-template/0.39.1/consul-template_0.39.1_linux_amd64.zip"
+    dest: "/tmp/consul-template.zip"
+  register: download
+
+- name: Unzip consul
+  unarchive:
+    src: /tmp/consul-template.zip
+    dest: "/usr/bin"
+    remote_src: true
+  when: download.changed
+
+- name: make dir for template
+  file:
+    name: /usr/local/consul/templates/
+    state: directory
+
+- name: copy template
+  copy:
+    src: "{{ item }}"
+    dest: /usr/local/consul/templates/{{ item }}
+  with_items:
+    - "web.conf.ctmpl"
+    - "consul.hcl"
+
+- name: Set systemd service
+  template: 
+    src: consul-template.service
+    dest: "{{ systemctl_path }}/consul-template.service"
+  register: set_service
+
+- name: Daemon reload
+  service:
+    daemon-reload: true
+  when: set_service.changed
+
+- name: Start consul-template service
+  service:
+    name: consul-template
+    state: started
+    enabled: True
+    
+# - name: Set consul template
+#   shell: 'consul-template -template "/usr/local/consul/templates/web.conf.ctmpl:/etc/nginx/conf.d/web.conf" -once'
+
+- name: start NGINX
+  service:
+    name: nginx
+    state: started
+    enabled: true

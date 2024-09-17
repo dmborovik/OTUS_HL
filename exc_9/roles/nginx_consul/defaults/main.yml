@@ -1,0 +1,3 @@
+---
+# defaults file for nginx_consul
+systemctl_path: /usr/lib/systemd/system

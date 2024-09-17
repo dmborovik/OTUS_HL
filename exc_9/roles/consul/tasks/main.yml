@@ -1,0 +1,110 @@
+---
+# tasks file for consul
+- name: Install prerequestion
+  dnf:
+    name: unzip
+    state: present 
+
+- name: Add consul group 
+  group:
+    name: "{{ consul_group }}"
+    state: present
+
+- name: Add consul user
+  user:
+    name: "{{ consul_user }}"
+    comment: user for consul
+    group: "{{ consul_group }}"
+    system: true
+
+- name: Download consul {{ cl_version }}
+  get_url:
+    url: "https://hashicorp-releases.yandexcloud.net/consul/{{ cl_version }}/consul_{{ cl_version }}_linux_amd64.zip"
+    dest: "/tmp/consul.zip"
+  register: download
+
+- name: Create config directory
+  file: 
+    name: /etc/consul.d/
+    state: directory
+    owner: consul
+    group: consul
+  when: download.changed
+
+- name: Create data directory
+  file:
+    name: /opt/consul/
+    state: directory
+    owner: consul
+    group: consul
+
+- name: Unzip consul
+  unarchive:
+    src: "/tmp/consul.zip"
+    dest: "/usr/bin"
+    remote_src: true
+  when: download.changed
+
+- name: Set systemd service
+  template: 
+    src: consul.service
+    dest: "{{ systemctl_path }}/consul.service"
+  register: set_service
+
+- name: Daemon reload
+  service:
+    daemon-reload: true
+  when: set_service.changed
+
+
+- name: consul keygen
+  shell: "consul keygen"
+  run_once: true
+  register: keygen
+
+- name: set consul config on servers
+  template:
+    src: consul.json
+    dest: /etc/consul.d/consul.json
+    owner: "{{ consul_user }}"
+    group: "{{ consul_user }}"
+  when: inventory_hostname in groups['consul']
+  notify: reload consul
+
+- name: set consul config agent backend
+  template:
+    src: consul-agent.json
+    dest: /etc/consul.d/consul.json
+    owner: "{{ consul_user }}"
+    group: "{{ consul_user }}"
+  when: inventory_hostname not in groups['consul']
+  notify: reload consul
+
+- name: set service web
+  template:
+    src: service_web.json
+    dest: /etc/consul.d/web.json
+    owner: "{{ consul_user }}"
+    group: "{{ consul_user }}"
+  when: inventory_hostname in groups['backends']
+  notify: reload consul
+
+- name: set service database
+  template:
+    src: service_db.json
+    dest: /etc/consul.d/db.json
+    owner: "{{ consul_user }}"
+    group: "{{ consul_user }}"
+  when: inventory_hostname in groups['databases']
+  notify: reload consul
+
+- name: delete keyring
+  shell: "rm -rf /opt/consul/serf/*.keyring"
+
+- name: start consul
+  service:
+    name: consul
+    state: restarted
+    enabled: true
+    
+

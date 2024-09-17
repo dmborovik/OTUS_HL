@@ -1,0 +1,7 @@
+---
+# defaults file for consul
+consul_group: consul
+consul_user: consul
+
+cl_version: 1.19.2
+systemctl_path: /usr/lib/systemd/system
