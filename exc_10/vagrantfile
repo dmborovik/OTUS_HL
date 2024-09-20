@@ -1,0 +1,71 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+home = ENV['HOME']
+disk1 = 'disk-pve1.vdi'
+disk2 = 'disk-pve2.vdi'
+disknfs='disk-pvenfs.vdi'
+Vagrant.configure(2) do |config|
+
+
+  config.vm.define "pve1" do |main|
+    main.vm.network "private_network", adapter: 2, :device => "eth1", auto_config: false, virtualbox__intnet: "internal-net" # Internal network
+    main.vm.network "private_network", adapter: 3, :device => "eth2", ip: '192.168.56.101', netmask: "255.255.248.0" # Management
+    main.vm.hostname = "pve1"
+    main.vm.box = "bento/debian-11"
+    main.vm.provider :virtualbox do |virtualbox|
+      virtualbox.name = "pve1"
+      virtualbox.customize ["modifyvm", :id, "--memory", "2024"]
+      virtualbox.customize ["modifyvm", :id, "--cpus", "2"]
+      unless File.exist?(disk1)
+        virtualbox.customize ['createhd', '--filename', disk1, '--size', 30 * 1024]
+      end
+        virtualbox.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', disk1]
+    end
+  end
+
+  # config.vm.define "pve2" do |main|
+  #   main.vm.network "private_network", adapter: 2, :device => "eth1", auto_config: false, virtualbox__intnet: "internal-net" # Internal network
+  #   main.vm.network "private_network", adapter: 3, :device => "eth2", ip: '192.168.56.102', netmask: "255.255.248.0" # Management
+  #   main.vm.hostname = "pve2"
+  #   main.vm.box = "bento/debian-11"
+  #   main.vm.provider :virtualbox do |virtualbox|
+  #     virtualbox.name = "pve2"
+  #     virtualbox.customize ["modifyvm", :id, "--memory", "2048"]
+  #     virtualbox.customize ["modifyvm", :id, "--cpus", "2"]
+  #     unless File.exist?(disk2)
+  #       virtualbox.customize ['createhd', '--filename', disk2, '--size', 30 * 1024]
+  #     end
+  #       virtualbox.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', disk2]
+  #   end
+  # end
+
+  # config.vm.define "pve-nfs" do |main|
+  #   main.vm.network "private_network", adapter: 2, :device => "eth1", auto_config: false, virtualbox__intnet: "internal-net" # Internal network
+  #   main.vm.network "private_network", adapter: 3, :device => "eth2", ip: '192.168.56.103', netmask: "255.255.248.0" # Management
+  #   main.vm.hostname = "pve-nfs"
+  #   main.vm.box = "bento/debian-11"
+  #   main.vm.provider :virtualbox do |virtualbox|
+  #     virtualbox.name = "pve-nfs"
+  #     virtualbox.customize ["modifyvm", :id, "--memory", "1048"]
+  #     virtualbox.customize ["modifyvm", :id, "--cpus", "1"]
+  #     unless File.exist?(disknfs)
+  #       virtualbox.customize ['createhd', '--filename', disknfs, '--size', 30 * 1024]
+  #     end
+  #       virtualbox.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', disknfs]
+  #   end
+  # end
+
+  config.vm.provision "shell", run: "always", inline: <<-SHELL
+    mkdir -p ~root/.ssh
+    cp ~vagrant/.ssh/auth* ~root/.ssh
+  SHELL
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.compatibility_mode = "2.0"
+    ansible.playbook = "main.yaml"
+    ansible.verbose = "false"
+    ansible.become = "true"
+  end
+
+end
