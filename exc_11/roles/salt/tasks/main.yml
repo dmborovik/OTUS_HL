@@ -1,0 +1,32 @@
+---
+# tasks file for salt
+
+- name: Add Salt repository
+  yum_repository:
+    name: salt-repo
+    description: Salt repo for RHEL-like 9
+    baseurl: https://repo.saltproject.io/salt/py3/redhat/9/x86_64/latest
+    skip_if_unavailable: true
+    priority: 10
+    enabled: True
+    gpgcheck: true
+    gpgkey: https://repo.saltproject.io/salt/py3/redhat/9/x86_64/latest/SALT-PROJECT-GPG-PUBKEY-2023.pub
+
+- name: Set Salt-master
+  include_tasks: master.yml
+  when: inventory_hostname in groups['salt']
+
+- name: Set Salt-minion
+  include_tasks: minion.yml
+  when: inventory_hostname not in groups['salt']
+
+- name: Accept minion 
+  shell: "salt-key -A -y"
+  when: inventory_hostname in groups['salt']
+
+- name: Apply set
+  shell: 'salt \* state.highstate'
+  when: inventory_hostname in groups['salt']
+
+
+  

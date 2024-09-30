@@ -1,0 +1,53 @@
+---
+# tasks file for wordpress
+- name: Install prerequisites
+  yum:
+    name: 
+      - wget
+    state: present
+    update_cache: true
+
+- name: Create document root
+  run_once: true
+  file: 
+    path: /var/www/html/api/
+    state: directory
+    owner: "nginx"
+    mode: 0755
+
+- name: Download and unpack latest Wordpress
+  run_once: True
+  unarchive:
+    src: https://wordpress.org/latest.tar.gz
+    dest: "/var/www/html/api/"
+    remote_src: yes
+    creates: "/var/www/html/api/wordpress"
+
+- name: set up wp-config
+  run_once: True
+  template:
+    src: wp-config.php.j2
+    dest: "/var/www/html/api/wordpress/wp-config.php"
+
+- name: set permission for files
+  run_once: True
+  shell: "chown -R nginx: /var/www/html/api"
+
+- name: Add http service to firewalld
+  firewalld:
+    service: http 
+    permanent: True
+    state: enabled  
+  register: firewalld_state
+
+- name: reload firewalld
+  service:
+    name: firewalld
+    state: reloaded
+  when: firewalld_state is changed
+
+# - name: restart NGINX
+#   service:
+#     name: nginx
+#     state: restarted
+#     enabled: true

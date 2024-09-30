@@ -1,0 +1,6 @@
+
+interface: {{ hostvars[inventory_hostname]['ansible_eth1'].ipv4.address }}
+id: master
+file_roots:
+  base:
+  - /srv/salt/

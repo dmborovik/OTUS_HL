@@ -1,0 +1,146 @@
+---
+- name: Prerequestion
+  hosts: all
+  become: yes 
+  tasks:
+    
+  - name: set timezone
+    timezone:
+      name: Europe/Moscow
+  
+  - name: "Build hosts file"
+    lineinfile: dest=/etc/hosts regexp='.*{{ item }}$' line="{{ hostvars[item].ansible_host }} {{item}}" state=present
+    when: hostvars[item].ansible_default_ipv4.address is defined
+    with_items: "{{ groups['all'] }}"
+
+  - name: Disable SELinux
+    selinux:
+      state: disabled
+    register: selinux_status
+
+  - name: Reboot host
+    reboot:
+      reboot_timeout: 3600
+    when: selinux_status is changed
+
+  - name: Add firewalld rules (TCP)
+    firewalld:
+      port: "{{item}}/tcp"
+      state: enabled
+      permanent: true
+    with_items:
+      - 4505
+      - 4506
+      # - 8301
+      # - 8302
+      # - 8300
+      # - 21000-21255
+      # - 8501
+      # - 8502
+    register: firewalld_state
+
+  - name: reload firewalld
+    service:
+      name: firewalld
+      state: reloaded
+    when: firewalld_state is changed
+
+  # - name: Add firewalld rules (UDP)
+  #   firewalld:
+  #     port: "{{item}}/udp"
+  #     state: enabled
+  #     permanent: true
+  #   with_items:
+  #     - 8600
+  #     - 8301
+  #     - 8302
+  #     - 21000-21255
+  #     - 8502
+  #   register: firewalld_state
+
+  # - name: reload firewalld
+  #   service:
+  #     name: firewalld
+  #     state: reloaded
+  #   when: firewalld_state is changed
+
+- name: Set database
+  hosts: database
+  become: True
+  roles:
+    # - database
+    # - pxc
+    # - etcd
+    # - patroni
+
+# - name: Set haproxy for patroni
+#   hosts: hpx
+#   become: True  
+#   roles:
+#     - haproxy
+    
+
+# - name: set up iscsi
+#   hosts:
+#     - backend
+#     - targets
+#   become: true
+#   roles:
+#     - { role: 'OndrejHome.targetcli-modules' }
+#     - iscsi
+
+- name: Set backend
+  hosts: backends
+  become: True
+  roles:
+    # - pacemaker
+    # - fence
+    # - gfs2
+    # - nginx
+    - php
+    - wordpress
+    - database
+
+# - name: Install balancer
+#   hosts: balancers
+#   become: True
+#   roles:
+#     - balancer
+
+- name: Deploy kafka
+  hosts: kafka
+  become: True
+  roles:
+    # - kafka  
+
+- name: Deploy opensearch wtih dashboard
+  hosts: ops
+  become: true
+  roles:
+    # - opensearch
+
+- name: Deploy vector
+  hosts: vector
+  become: true
+  roles:
+    # - vector
+
+- name: Deploy consul
+  hosts: all
+  become: True
+  roles:
+    # - consul
+
+- name: Set nginx service
+  hosts: balancer
+  become: true
+  roles:
+    # - nginx_consul
+
+- name: Deploy Salt
+  hosts: salt, minion
+  become: true
+  roles:
+    - salt
+
+

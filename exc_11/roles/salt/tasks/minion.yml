@@ -1,0 +1,17 @@
+- name: Install salt-minion
+  dnf:
+    name: salt-minion 
+    state: present
+
+- name: Set minion config
+  template:
+    src: config-minion
+    dest: /etc/salt/minion
+  register: config
+
+- name: start Salt service
+  service: 
+    name: salt-minion
+    state: restarted
+    enabled: True
+  when: config.changed

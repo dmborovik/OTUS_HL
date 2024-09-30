@@ -1,0 +1,27 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+    config.vm.box = "generic/alma9"
+ 
+    config.vm.provider "virtualbox" do |v|
+      v.cpus=1
+      v.memory=512
+    end
+
+    config.vm.define "nginx" do |ngx|
+      ngx.vm.hostname = "nginx"
+      ngx.vm.network "private_network", ip: "192.168.56.30"
+    end
+
+    config.vm.define "backend1" do |bck1|
+      bck1.vm.hostname = "backend1"      
+      bck1.vm.network "private_network", ip: "192.168.56.20"
+    end
+
+    config.vm.define "salt" do |sl|
+      sl.vm.hostname = "salt-server"
+      sl.vm.network "private_network", ip: "192.168.56.50"
+    end
+end

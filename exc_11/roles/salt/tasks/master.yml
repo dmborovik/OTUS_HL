@@ -1,0 +1,63 @@
+- name: Install salt-master
+  dnf: 
+    name: salt-master
+    state: present
+
+- name: set config
+  template:
+    src: config-master
+    dest: /etc/salt/master.d/config
+  register: config
+
+- name: Start salt  
+  service:
+    name: salt-master
+    state: restarted
+    enabled: True    
+  when: config.changed
+
+- name: Create configuration directory /srv/salt/ 
+  file:
+    name: /srv/salt/
+    state: directory
+
+- name: Creat directory for configuration NGINX
+  file:
+    name: /srv/salt/balancer
+    state: directory
+
+- name: set top files 
+  template:
+    src: "top.sls"
+    dest: "/srv/salt/top.sls"
+
+- name: set sls files nginx
+  template:
+    src: "salt/{{ item }}"
+    dest: "/srv/salt/balancer/{{ item }}"
+  with_items:
+    - nginx_conf_balancer.sls
+    - nginx_install.sls
+    - nginx_start.sls
+    - nginx_balancer.conf
+    - nginx_server.conf
+    - nginx_conf_server.sls
+
+- name: Creat directory for configuration iptables
+  file:
+    name: /srv/salt/iptables/
+    state: directory
+
+- name: set sls files iptables
+  template:
+    src: "iptables/{{ item }}"
+    dest: "/srv/salt/iptables/{{ item }}"
+  with_items:
+    - rules_drop.sls
+    - rules_server.sls
+    - rules_backend.sls
+
+
+
+
+
