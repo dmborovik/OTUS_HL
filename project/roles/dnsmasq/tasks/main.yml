@@ -1,0 +1,37 @@
+---
+# tasks file for dnsmasq
+- name: Install dnsmasq
+  dnf:
+    name: dnsmasq
+    state: present
+
+- name: Start and enable dnsmasq
+  service:
+    name: dnsmasq
+    state: started
+    enabled: true
+
+- name: Set config for dnsmasq
+  template:
+    src: consul
+    dest: /etc/dnsmasq.d/consul
+
+- name: Set config for dnsmasq
+  template:
+    src: interfaces
+    dest: /etc/dnsmasq.d/interfaces
+
+- name: Get default DNS 
+  shell: "cat /etc/resolv.conf | grep nameserver | awk '{print $2}'"
+  register: ip_resolv
+
+- name: Set config for dnsmasq
+  template:
+    src: forwarding
+    dest: /etc/dnsmasq.d/forwarding
+
+- name: Start and enable dnsmasq
+  service:
+    name: dnsmasq
+    state: restarted
+    enabled: true

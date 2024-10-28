@@ -1,0 +1,25 @@
+# Template my.cnf for PXC
+# Edit to your requirements.
+[client]
+socket=/var/lib/mysql/mysql.sock
+
+ssl-ca=/etc/mysql/certs/ca.pem
+ssl-cert=/etc/mysql/certs/client-cert.pem
+ssl-key=/etc/mysql/certs/client-key.pem
+
+[mysqld]
+server-id=1
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+
+ssl-ca=/etc/mysql/certs/ca.pem
+ssl-cert=/etc/mysql/certs/server-cert.pem
+ssl-key=/etc/mysql/certs/server-key.pem
+
+# Binary log expiration period is 604800 seconds, which equals 7 days
+binlog_expire_logs_seconds=604800
+
+!include /etc/my.cnf.d/wsrep.cnf
+#

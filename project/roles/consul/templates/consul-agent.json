@@ -1,0 +1,12 @@
+{
+    "bind_addr": "{{ hostvars[inventory_hostname]['ansible_eth0'].ipv4.address }}",
+    "server": false,
+    "datacenter": "dc1",
+    "node_name": "{{ inventory_hostname }}",
+    "data_dir": "/opt/consul",
+    "retry_join": ["consul1","consul2","consul3"],
+    "enable_local_script_checks": true,
+    "encrypt": "{{ keygen.stdout }}",
+    "log_level": "warn",
+    "enable_syslog": true
+}

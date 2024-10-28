@@ -1,0 +1,5 @@
+---
+# handlers file for gfs2
+- name: Rebuild initramfs
+  command: dracut -f
+  changed_when: true

@@ -1,0 +1,11 @@
+{
+    "service": {
+      "name": "database",
+      "tags": ["MariaDB"],
+      "port": 3306,
+      "check": {
+        "args": [ "mysqladmin", "ping" ],
+        "interval": "10s"
+      }
+    }
+  }

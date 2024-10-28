@@ -1,0 +1,28 @@
+global_defs {
+    vrrp_version 3
+}
+
+vrrp_script check_nginx {
+    script "/bin/check_nginx.sh"
+    interval 2
+    weight 2
+}
+
+vrrp_instance VI_1 {
+    interface eth0
+    state BACKUP
+    virtual_router_id 1
+    priority 101
+    virtual_ipaddress {
+        {{ virtual_ip }}
+    }
+
+track_script {
+    check_nginx
+}
+
+authentication {
+    auth_type PASS 
+    auth_pass secret_password
+}
+}

@@ -1,0 +1,113 @@
+#                                    __   __  __
+#                                    \ \ / / / /
+#                                     \ V / / /
+#                                      \_/  \/
+#
+#                                    V E C T O R
+#                                   Configuration
+#
+# ------------------------------------------------------------------------------
+# Website: https://vector.dev
+# Docs: https://vector.dev/docs
+# Chat: https://chat.vector.dev
+# ------------------------------------------------------------------------------
+
+# Change this to use a non-default directory for Vector data storage:
+data_dir: "/var/lib/vector"
+
+# Random Syslog-formatted logs
+# sources:
+#   dummy_logs:
+#     type: "demo_logs"
+#     format: "syslog"
+#     interval: 1
+
+sources:
+  nginx: 
+    type: file
+    include:
+      - /var/log/nginx/access.log
+      - /var/log/nginx/error.log
+  
+  wordpress:
+    type: file
+    include:
+      - /var/log/nginx/api.access.log
+      - /var/log/nginx/api.error.log
+
+# Parse Syslog logs
+# See the Vector Remap Language reference for more info: https://vrl.dev
+transforms:
+  nginx_logs:
+    type: "remap"
+    inputs: ["nginx"]
+    source: |
+      . = parse_syslog!(string!(.message))
+
+
+  wordpress_logs:
+    type: "remap"
+    inputs: ["wordpress"]
+    source: |
+      . = parse_syslog!(string!(.message))
+
+# Print parsed logs to stdout
+sinks:
+  ops_nginx:
+    inputs: ["nginx_logs"]      # only take sampled data
+    type: "elasticsearch"
+    api_version: "v7"
+    endpoints:
+      - "https://opensearch.service.consul:9200"
+    bulk:
+      index: "{{ inventory_hostname }}-nginx-%Y-%m-%d" # daily indices
+    # healthcheck: false
+    tls:
+      verify_certificate: false
+    auth:
+      user: admin
+      password: "{{ admin_password }}"
+      strategy: basic
+
+  ops_wordpress:
+    inputs: ["wordpress_logs"]      # only take sampled data
+    type: "elasticsearch"
+    api_version: "v7"
+    endpoints:
+      - "https://opensearch.service.consul:9200"
+    bulk:
+      index: "{{ inventory_hostname }}-wordpress-%Y-%m-%d" # daily indices
+    # healthcheck: false
+    tls:
+      verify_certificate: false
+    auth:
+      user: admin
+      password: "{{ admin_password }}"
+      strategy: basic
+
+
+  # es_cluster:
+  #   inputs:
+  #     - parse_logs      # only take sampled data
+  #   type: "elasticsearch"
+  #   api_version: "v7"
+  #   endpoints:
+  #     - "https://elk1:9200"
+  #     - "https://elk2:9200"
+  #     - "https://elk3:9200"
+  #   bulk:
+  #     index: "vector-%Y-%m-%d" # daily indices
+  #   # healthcheck: false
+  #   tls:
+  #     verify_certificate: false
+  #   auth:
+  #     user: admin
+  #     password: "admin_password"
+  #     strategy: basic
+
+# Vector's GraphQL API (disabled by default)
+# Uncomment to try it out with the `vector top` command or
+# in your browser at http://localhost:8686
+# api:
+#   enabled: true
+#   address: "0.0.0.0:8686"

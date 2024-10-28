@@ -1,0 +1,23 @@
+---
+# defaults file for dashboard
+os_dashboards_version: "2.16.0"
+
+os_dashboards_user: opensearch-dashboards
+os_dashboards_home: /opt/opensearch-dashboards
+os_conf_dir: /opt/opensearch-dashboards/config
+
+
+
+os_nodes: |-
+        {% for item in groups['elk'] -%}
+          {{ hostvars[item]['ansible_eth0'].ipv4.address }}{% if not loop.last %}","{% endif %}
+        {%- endfor %}
+
+os_plugin_bin_path: /opt/opensearch-dashboards/bin/opensearch-dashboards-plugin
+
+os_nodes_dashboards: |-
+        {% for item in groups['elk'] -%}
+          https://{{ hostvars[item]['ansible_eth0'].ipv4.address }}:{{ os_api_port }}{% if not loop.last %}","{% endif %}
+        {%- endfor %}
+
+os_api_port: 9200

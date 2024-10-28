@@ -1,0 +1,1 @@
+InitiatorName={{ iqn_base }}:{{ ansible_hostname }}

@@ -1,0 +1,15 @@
+---
+- name: Install extension
+  dnf:
+    name:    
+      - python3-firewall
+    state: present
+
+- name: Set target
+  include_tasks: target.yml
+  when: inventory_hostname in groups[ "targets" ] 
+
+- name: Set clients
+  include_tasks: client.yml
+  when: inventory_hostname in groups[ "backends" ]
+

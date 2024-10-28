@@ -1,0 +1,41 @@
+---
+# tasks file for pacemaker
+- name: install pacemaker packages
+  dnf:
+    name: "{{ item }}"
+    enablerepo: highavailability
+    state: present 
+  with_items:
+    - pacemaker
+    - pcs
+
+- name: enable pcsd service
+  systemd:
+    name: pcsd
+    state: started
+    enabled: yes
+
+- name: config | Setting hacluster password
+  user:
+    name:  hacluster
+    password: "{{ pacemaker_hacluster_sha | mandatory | password_hash('sha512', ansible_hostname|replace('-','x') | truncate(16, True, '', 0)) }}"
+  become: true
+
+- name: config cluster
+  block:
+
+  - name: check if auth was made already
+    stat:
+      path: /var/lib/pcsd/known-hosts
+    register: tokens_exist
+
+  - name: pcs auth
+    run_once: True
+    shell: |
+      pcs host auth {{ groups['backends']|join(' ') }} -u hacluster -p  {{ pacemaker_hacluster_sha  }}
+      pcs cluster setup {{ cluster_name }} {{ groups['backends']|join(' ') }}
+      pcs cluster start --all
+      pcs cluster enable --all
+    when: not tokens_exist.stat.exists
+
+  throttle: 1

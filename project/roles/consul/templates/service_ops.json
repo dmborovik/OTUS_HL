@@ -1,0 +1,11 @@
+{
+    "service": {
+      "name": "opensearch",
+      "port": 5601,
+      "check": {
+        "args": ["curl", "{{ hostvars[inventory_hostname]['ansible_eth0'].ipv4.address }}:5601"],
+        "interval": "10s"
+      },
+      "tags": [ "opensearch" ]
+    }
+  }

@@ -1,0 +1,4 @@
+---
+# defaults file for vector
+rpm_url: https://yum.vector.dev/stable/vector-0/x86_64/vector-0.40.1-1.x86_64.rpm
+
